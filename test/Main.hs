@@ -45,6 +45,15 @@ spec = testSpec "Control.Monad.Search" $ do
         testSearch ((cost' (C 1) >> return L) `mplus` return R)
             `shouldBe` [ (C 0, R), (C 1, L) ]
 
+    it "Collapse suppresses results with higher cost" $
+        testSearch ((collapse >> return L) `mplus` (cost' (C 1) >> return R))
+            `shouldBe` [ (C 0, L) ]
+
+    it "Collapse can be limited in scope" $
+        testSearch (seal ((collapse >> return L) `mplus` (cost' (C 1) >> return R))
+                    `mplus` (cost' (C 2) >> return R))
+            `shouldBe` [ (C 0, L), (C 2, R) ]
+
     it "Results are generated lazily" $ do
         head (testSearch (return L `mplus`
                               (cost' (C 1) >> return (error "not lazy right"))))

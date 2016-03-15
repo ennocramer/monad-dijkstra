@@ -48,6 +48,9 @@ module Control.Monad.Search
     , cost'
     , junction
     , abandon
+    , seal
+    , collapse
+    , winner
     ) where
 
 import           Control.Applicative         ( Alternative(..) )
@@ -88,6 +91,9 @@ runSearch = runIdentity . runSearchT
 -- | Functor for the Free monad SearchT
 data SearchF c a = Cost c c a
                  | Alt a a
+                 | Enter a
+                 | Exit a
+                 | Collapse a
                  | Abandon
     deriving Functor
 
@@ -104,12 +110,14 @@ instance (Ord c, Monoid c, Monad m) => MonadPlus (SearchT c m)
 deriving instance Lazy.MonadRWS r w s m => Lazy.MonadRWS r w s (SearchT c m)
 
 -- | Value type for A*/Dijkstra priority queue
-data Cand c m a = Cand { candCost :: !c
-                       , candPath :: FreeT (SearchF c) m a
+data Cand c m a = Cand { candCost  :: !c
+                       , candScope :: ![Int]
+                       , candPath  :: FreeT (SearchF c) m a
                        }
 
 -- | State used during evaluation of SearchT
 data St c m a = St { stNum   :: !Int
+                   , stScope :: !Int
                    , stQueue :: !(PSQ.OrdPSQ Int c (Cand c m a))
                    }
 
@@ -143,16 +151,34 @@ runSearchT m = catMaybes <$> evalStateT go state
                 num' <- nextNum
                 updateQueue $ PSQ.insert num' prio cand { candPath = rhs }
                 step num prio cand { candPath = lhs }
+            Free (Enter p) -> do
+                scope <- nextScope
+                step num
+                     prio
+                     cand { candScope = scope : candScope, candPath = p }
+            Free (Exit p) ->
+                step num prio cand { candScope = tail candScope, candPath = p }
+            Free (Collapse p) -> do
+                updateQueue $ PSQ.fromList .
+                    filter (\(_, _, c) -> not $ hasScope (head candScope) c) .
+                        PSQ.toList
+                step num prio cand { candPath = p }
 
     nextNum = do
         modify $ \s -> s { stNum = stNum s + 1 }
         gets stNum
 
+    nextScope = do
+        modify $ \s -> s { stScope = stScope s + 1 }
+        gets stScope
+
+    hasScope s Cand{..} = s `elem` candScope
+
     updateQueue f = modify $ \s -> s { stQueue = f (stQueue s) }
 
-    state = St 0 queue
+    state = St 0 0 queue
 
-    queue = PSQ.singleton 0 mempty (Cand mempty (unSearchT m))
+    queue = PSQ.singleton 0 mempty (Cand mempty [ 0 ] (unSearchT m))
 
 -- | Minimal definition is @cost@, @junction@, and @abandon@.
 class (Ord c, Monoid c, Monad m) => MonadSearch c m | m -> c where
@@ -169,60 +195,92 @@ class (Ord c, Monoid c, Monad m) => MonadSearch c m | m -> c where
     -- | Abandon a computation.
     abandon :: m a
 
+    -- | Limit the effect of `collapse` to alternatives within the
+    -- sealed scope.
+    seal :: m a -> m a
+
+    -- | Abandon all other computations within the current sealed
+    -- scope.
+    collapse :: m ()
+
 instance (Ord c, Monoid c, Monad m) => MonadSearch c (SearchT c m) where
     cost c e = SearchT . wrap $ Cost c e (return ())
     junction lhs rhs = SearchT . wrap $ Alt (unSearchT lhs) (unSearchT rhs)
     abandon = SearchT . wrap $ Abandon
+    seal m = SearchT . wrap $ Enter (unSearchT m >>= wrap . Exit . return)
+    collapse = SearchT . wrap $ Collapse (return ())
 
 instance MonadSearch c m => MonadSearch c (ReaderT r m) where
     cost c e = lift $ cost c e
     junction lhs rhs = ReaderT $
         \r -> junction (runReaderT lhs r) (runReaderT rhs r)
     abandon = lift abandon
+    seal m = ReaderT $ \r -> seal (runReaderT m r)
+    collapse = lift collapse
 
 instance (Monoid w, MonadSearch c m) => MonadSearch c (Lazy.WriterT w m) where
     cost c e = lift $ cost c e
     junction lhs rhs = Lazy.WriterT $
         junction (Lazy.runWriterT lhs) (Lazy.runWriterT rhs)
     abandon = lift abandon
+    seal m = Lazy.WriterT $ seal (Lazy.runWriterT m)
+    collapse = lift collapse
 
 instance (Monoid w, MonadSearch c m) => MonadSearch c (Strict.WriterT w m) where
     cost c e = lift $ cost c e
     junction lhs rhs = Strict.WriterT $
         junction (Strict.runWriterT lhs) (Strict.runWriterT rhs)
     abandon = lift abandon
+    seal m = Strict.WriterT $ seal (Strict.runWriterT m)
+    collapse = lift collapse
 
 instance MonadSearch c m => MonadSearch c (Lazy.StateT s m) where
     cost c e = lift $ cost c e
     junction lhs rhs = Lazy.StateT $
         \s -> junction (Lazy.runStateT lhs s) (Lazy.runStateT rhs s)
     abandon = lift abandon
+    seal m = Lazy.StateT $ \s -> seal (Lazy.runStateT m s)
+    collapse = lift collapse
 
 instance MonadSearch c m => MonadSearch c (Strict.StateT s m) where
     cost c e = lift $ cost c e
     junction lhs rhs = Strict.StateT $
         \s -> junction (Strict.runStateT lhs s) (Strict.runStateT rhs s)
     abandon = lift abandon
+    seal m = Strict.StateT $ \s -> seal (Strict.runStateT m s)
+    collapse = lift collapse
 
 instance (Monoid w, MonadSearch c m) => MonadSearch c (Lazy.RWST r w s m) where
     cost c e = lift $ cost c e
     junction lhs rhs = Lazy.RWST $
         \r s -> junction (Lazy.runRWST lhs r s) (Lazy.runRWST rhs r s)
     abandon = lift abandon
+    seal m = Lazy.RWST $ \r s -> seal (Lazy.runRWST m r s)
+    collapse = lift collapse
 
 instance (Monoid w, MonadSearch c m) => MonadSearch c (Strict.RWST r w s m) where
     cost c e = lift $ cost c e
     junction lhs rhs = Strict.RWST $
         \r s -> junction (Strict.runRWST lhs r s) (Strict.runRWST rhs r s)
     abandon = lift abandon
+    seal m = Strict.RWST $ \r s -> seal (Strict.runRWST m r s)
+    collapse = lift collapse
 
 instance MonadSearch c m => MonadSearch c (ExceptT e m) where
     cost c e = lift $ cost c e
     junction lhs rhs = ExceptT $ junction (runExceptT lhs) (runExceptT rhs)
     abandon = lift abandon
+    seal m = ExceptT $ seal (runExceptT m)
+    collapse = lift collapse
 
 -- | Mark an operation with a cost.
 --
 -- > cost' c = cost c mempty
 cost' :: MonadSearch c m => c -> m ()
 cost' c = cost c mempty
+
+-- | Limit a given computation to the first successful return.
+--
+-- > winner m = seal (m <* collapse)
+winner :: MonadSearch c m => m a -> m a
+winner m = seal $ m <* collapse
