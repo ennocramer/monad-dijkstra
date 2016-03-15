@@ -2,6 +2,11 @@
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE FunctionalDependencies     #-}
 
 -- | The Search monad and SearchT monad transformer allow computations
 -- to be associated with costs and cost estimates, and explore
@@ -37,24 +42,41 @@ module Control.Monad.Search
       -- * The SearchT monad transformer
     , SearchT
     , runSearchT
-      -- * Search monad operations
+      -- * MonadClass and search monad operations
+    , MonadSearch
     , cost
     , cost'
     , junction
     , abandon
     ) where
 
-import           Control.Applicative       ( Alternative(..) )
-import           Control.Monad             ( MonadPlus(..) )
-import           Control.Monad.Trans.Class ( lift )
-import           Control.Monad.Trans.Free  ( FreeF(Free, Pure), FreeT, runFreeT
-                                           , wrap )
-import           Control.Monad.Trans.State ( evalStateT, gets, modify )
+import           Control.Applicative         ( Alternative(..) )
+import           Control.Monad               ( MonadPlus(..) )
+import           Control.Monad.Trans.Free    ( FreeF(Free, Pure), FreeT
+                                             , runFreeT, wrap )
+import           Control.Monad.Trans.State   ( evalStateT, gets, modify )
 
-import           Data.Functor.Identity     ( Identity, runIdentity )
-import           Data.Maybe                ( catMaybes )
+import           Control.Monad.Trans.Class   ( MonadTrans, lift )
+import           Control.Monad.IO.Class      ( MonadIO )
+import           Control.Monad.Reader        ( MonadReader, ReaderT(..)
+                                             , runReaderT )
+import qualified Control.Monad.Writer.Lazy   as Lazy ( MonadWriter, WriterT(..)
+                                                     , runWriterT )
+import qualified Control.Monad.Writer.Strict as Strict ( WriterT(..)
+                                                       , runWriterT )
+import qualified Control.Monad.State.Lazy    as Lazy ( MonadState, StateT(..)
+                                                     , runStateT )
+import qualified Control.Monad.State.Strict  as Strict ( StateT(..), runStateT )
+import qualified Control.Monad.RWS.Lazy      as Lazy ( MonadRWS, RWST(..)
+                                                     , runRWST )
+import qualified Control.Monad.RWS.Strict    as Strict ( RWST(..), runRWST )
+import           Control.Monad.Except        ( ExceptT(..), MonadError
+                                             , runExceptT )
+import           Control.Monad.Cont          ( MonadCont )
+import           Data.Functor.Identity       ( Identity, runIdentity )
+import           Data.Maybe                  ( catMaybes )
 
-import qualified Data.OrdPSQ               as PSQ
+import qualified Data.OrdPSQ                 as PSQ
 
 -- | The Search monad
 type Search c = SearchT c Identity
@@ -71,13 +93,15 @@ data SearchF c a = Cost c c a
 
 -- | The SearchT monad transformer
 newtype SearchT c m a = SearchT { unSearchT :: FreeT (SearchF c) m a }
-    deriving (Functor, Applicative, Monad)
+    deriving (Functor, Applicative, Monad, MonadTrans, MonadIO, MonadReader r, Lazy.MonadWriter w, Lazy.MonadState s, MonadError e, MonadCont)
 
-instance Monad m => Alternative (SearchT c m) where
+instance (Ord c, Monoid c, Monad m) => Alternative (SearchT c m) where
     empty = abandon
     (<|>) = junction
 
-instance Monad m => MonadPlus (SearchT c m)
+instance (Ord c, Monoid c, Monad m) => MonadPlus (SearchT c m)
+
+deriving instance Lazy.MonadRWS r w s m => Lazy.MonadRWS r w s (SearchT c m)
 
 -- | Value type for A*/Dijkstra priority queue
 data Cand c m a = Cand { candCost :: !c
@@ -130,24 +154,75 @@ runSearchT m = catMaybes <$> evalStateT go state
 
     queue = PSQ.singleton 0 mempty (Cand mempty (unSearchT m))
 
--- | Mark a computation with a definitive cost and additional
--- estimated cost.  Definitive costs are accumulated and reported,
--- while the estimate is reset with every call to `cost` and will not
--- be included in the final result.
-cost :: (Ord c, Monoid c, Monad m) => c -> c -> SearchT c m ()
-cost c e = SearchT . wrap $ Cost c e (return ())
+-- | Minimal definition is @cost@, @junction@, and @abandon@.
+class (Ord c, Monoid c, Monad m) => MonadSearch c m | m -> c where
+    -- | Mark a computation with a definitive cost and additional
+    -- estimated cost.  Definitive costs are accumulated and reported,
+    -- while the estimate is reset with every call to `cost` and will
+    -- not be included in the final result.
+    cost :: c -> c -> m ()
+
+    -- | Introduce an alternative computational path to be evaluated
+    -- concurrently.
+    junction :: m a -> m a -> m a
+
+    -- | Abandon a computation.
+    abandon :: m a
+
+instance (Ord c, Monoid c, Monad m) => MonadSearch c (SearchT c m) where
+    cost c e = SearchT . wrap $ Cost c e (return ())
+    junction lhs rhs = SearchT . wrap $ Alt (unSearchT lhs) (unSearchT rhs)
+    abandon = SearchT . wrap $ Abandon
+
+instance MonadSearch c m => MonadSearch c (ReaderT r m) where
+    cost c e = lift $ cost c e
+    junction lhs rhs = ReaderT $
+        \r -> junction (runReaderT lhs r) (runReaderT rhs r)
+    abandon = lift abandon
+
+instance (Monoid w, MonadSearch c m) => MonadSearch c (Lazy.WriterT w m) where
+    cost c e = lift $ cost c e
+    junction lhs rhs = Lazy.WriterT $
+        junction (Lazy.runWriterT lhs) (Lazy.runWriterT rhs)
+    abandon = lift abandon
+
+instance (Monoid w, MonadSearch c m) => MonadSearch c (Strict.WriterT w m) where
+    cost c e = lift $ cost c e
+    junction lhs rhs = Strict.WriterT $
+        junction (Strict.runWriterT lhs) (Strict.runWriterT rhs)
+    abandon = lift abandon
+
+instance MonadSearch c m => MonadSearch c (Lazy.StateT s m) where
+    cost c e = lift $ cost c e
+    junction lhs rhs = Lazy.StateT $
+        \s -> junction (Lazy.runStateT lhs s) (Lazy.runStateT rhs s)
+    abandon = lift abandon
+
+instance MonadSearch c m => MonadSearch c (Strict.StateT s m) where
+    cost c e = lift $ cost c e
+    junction lhs rhs = Strict.StateT $
+        \s -> junction (Strict.runStateT lhs s) (Strict.runStateT rhs s)
+    abandon = lift abandon
+
+instance (Monoid w, MonadSearch c m) => MonadSearch c (Lazy.RWST r w s m) where
+    cost c e = lift $ cost c e
+    junction lhs rhs = Lazy.RWST $
+        \r s -> junction (Lazy.runRWST lhs r s) (Lazy.runRWST rhs r s)
+    abandon = lift abandon
+
+instance (Monoid w, MonadSearch c m) => MonadSearch c (Strict.RWST r w s m) where
+    cost c e = lift $ cost c e
+    junction lhs rhs = Strict.RWST $
+        \r s -> junction (Strict.runRWST lhs r s) (Strict.runRWST rhs r s)
+    abandon = lift abandon
+
+instance MonadSearch c m => MonadSearch c (ExceptT e m) where
+    cost c e = lift $ cost c e
+    junction lhs rhs = ExceptT $ junction (runExceptT lhs) (runExceptT rhs)
+    abandon = lift abandon
 
 -- | Mark an operation with a cost.
 --
 -- > cost' c = cost c mempty
-cost' :: (Ord c, Monoid c, Monad m) => c -> SearchT c m ()
+cost' :: MonadSearch c m => c -> m ()
 cost' c = cost c mempty
-
--- | Introduce an alternative computational path to be evaluated
--- concurrently.
-junction :: Monad m => SearchT c m a -> SearchT c m a -> SearchT c m a
-junction lhs rhs = SearchT $ wrap $ Alt (unSearchT lhs) (unSearchT rhs)
-
--- | Abandon a computation.
-abandon :: Monad m => SearchT c m a
-abandon = SearchT $ wrap Abandon
