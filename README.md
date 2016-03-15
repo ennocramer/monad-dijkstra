@@ -1,0 +1,4 @@
+# monad-dijkstra
+
+A monad transformer for weighted graph searches using Dijkstra's or A*
+algorithm.
