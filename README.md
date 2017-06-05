@@ -11,11 +11,17 @@ computational paths can be explored concurrently.  The API is built in
 terms of the `Alternative` and `MonadPlus` type classes and a `cost`
 function.
 
-The `runSearchT` function concurrently and lazily evaluates all
-alternative computations, returning non-empty solutions in order of
-increasing cost.  When forcing only the head of the result list, the
-monad performs the minimal amount of work necessary to guarantee the
-optimal solution, i.e. with the least cost, is returned first.
+The `runSearch` function lazily evaluates all alternative
+computations, returning non-empty solutions in order of increasing
+cost.  When forcing only the head of the result list, the function
+performs the minimal amount of work necessary to guarantee the optimal
+solution, i.e. with the least cost, is returned first.
+
+The `runSearchT` function will also evaluate all alternatice
+computations in order of increasing cost, but the resulting list will
+likely not be lazy, depending bind operation of the underlying monad.
+The `collapse` function can be used to terminate the search when all
+interesting solutions have been found.
 
 ## Computational Cost
 

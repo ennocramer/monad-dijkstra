@@ -19,6 +19,12 @@
 -- cost of a computation is overestimated or a negative cost is
 -- applied, sub-optimal solutions may be produced first.
 --
+-- Note that while 'runSearchT' will produce a lazy list of results
+-- and the computation space is only explored as far as the list is
+-- forced, using 'runSearchT' with e.g. the 'IO' base monad will not.
+-- You need to use 'collapse' or 'abandon' to prune the search space
+-- within the monadic computation.
+--
 -- Example:
 --
 -- > import Control.Monad.Search

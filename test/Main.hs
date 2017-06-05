@@ -20,7 +20,10 @@ testSearch :: Search C Side -> [(C, Side)]
 testSearch = runSearch
 
 testSearchIO :: SearchT C IO Side -> IO [(C, Side)]
-testSearchIO = runSearchT
+testSearchIO comp = runSearchT $ do
+    r <- comp
+    collapse
+    return r
 
 spec :: IO TestTree
 spec = testSpec "Control.Monad.Search" $ do
@@ -56,21 +59,31 @@ spec = testSpec "Control.Monad.Search" $ do
 
     it "Results are generated lazily" $ do
         head (testSearch (return L `mplus`
-                              (cost' (C 1) >> return (error "not lazy right"))))
+                              (cost' (C 1) >> error "not lazy right")))
             `shouldBe` (C 0, L)
-        head (testSearch ((cost' (C 1) >> return (error "not lazy left")) `mplus`
-                              return L))
+        head (testSearch ((cost' (C 1) >> error "not lazy left") `mplus`
+                              return R))
+            `shouldBe` (C 0, R)
+
+    it "Results are generated lazily (infinite)" $
+        head (testSearch (foldr (\l r -> l `mplus` (cost' (C 1) >> r))
+                                (return R)
+                                (repeat (return L))))
             `shouldBe` (C 0, L)
 
     it "Results are generated lazily in IO" $ do
-        head <$>
-            testSearchIO (return L `mplus`
-                              (cost' (C 1) >> return (error "not lazy right")))
-                `shouldReturn` (C 0, L)
-        head <$>
-            testSearchIO ((cost' (C 1) >> return (error "not lazy left")) `mplus`
-                              return L)
-                `shouldReturn` (C 0, L)
+        testSearchIO (return L `mplus`
+                         (cost' (C 1) >> error "not lazy right"))
+            `shouldReturn` [(C 0, L)]
+        testSearchIO ((cost' (C 1) >> error "not lazy left") `mplus`
+                         return R)
+                `shouldReturn` [(C 0, R)]
+
+    it "Results are generated lazily in IO (infinite)" $
+        testSearchIO (foldr (\l r -> l `mplus` (cost' (C 1) >> r))
+                            (return R)
+                            (repeat (return L)))
+            `shouldReturn` [(C 0, L)]
 
 main :: IO ()
 main = do
