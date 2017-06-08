@@ -25,6 +25,9 @@ testSearchIO comp = runSearchT $ do
     collapse
     return r
 
+infiniteSearch :: Monad m => SearchT C m Side
+infiniteSearch = return L `mplus` (cost' (C 1) >> infiniteSearch)
+
 spec :: IO TestTree
 spec = testSpec "Control.Monad.Search" $ do
     it "Monad return generates one result" $
@@ -66,10 +69,12 @@ spec = testSpec "Control.Monad.Search" $ do
             `shouldBe` (C 0, R)
 
     it "Results are generated lazily (infinite)" $
-        head (testSearch (foldr (\l r -> l `mplus` (cost' (C 1) >> r))
-                                (return R)
-                                (repeat (return L))))
+        head (testSearch infiniteSearch)
             `shouldBe` (C 0, L)
+
+    it "Results are generated in constant space / linear time" $
+        testSearch infiniteSearch !! 10000
+            `shouldBe` (C 10000, L)
 
     it "Results are generated lazily in IO" $ do
         testSearchIO (return L `mplus`
@@ -80,9 +85,7 @@ spec = testSpec "Control.Monad.Search" $ do
                 `shouldReturn` [(C 0, R)]
 
     it "Results are generated lazily in IO (infinite)" $
-        testSearchIO (foldr (\l r -> l `mplus` (cost' (C 1) >> r))
-                            (return R)
-                            (repeat (return L)))
+        testSearchIO infiniteSearch
             `shouldReturn` [(C 0, L)]
 
 main :: IO ()
