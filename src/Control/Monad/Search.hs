@@ -45,9 +45,11 @@ module Control.Monad.Search
     ( -- * The Search monad
       Search
     , runSearch
+    , runSearchBest
       -- * The SearchT monad transformer
     , SearchT
     , runSearchT
+    , runSearchBestT
       -- * MonadClass and search monad operations
     , MonadSearch
     , cost
@@ -83,7 +85,7 @@ import           Control.Monad.Except        ( ExceptT(..), MonadError
                                              , runExceptT )
 import           Control.Monad.Cont          ( MonadCont )
 import           Data.Functor.Identity       ( Identity, runIdentity )
-import           Data.Maybe                  ( catMaybes )
+import           Data.Maybe                  ( catMaybes, listToMaybe )
 
 import qualified Data.OrdPSQ                 as PSQ
 
@@ -93,6 +95,10 @@ type Search c = SearchT c Identity
 -- | Generate all solutions in order of increasing cost.
 runSearch :: (Ord c, Monoid c) => Search c a -> [(c, a)]
 runSearch = runIdentity . runSearchT
+
+-- | Generate only the best solution.
+runSearchBest :: (Ord c, Monoid c) => Search c a -> Maybe (c, a)
+runSearchBest = runIdentity . runSearchBestT
 
 -- | Functor for the Free monad SearchT
 data SearchF c a = Cost c c a
@@ -185,6 +191,10 @@ runSearchT m = catMaybes <$> evalStateT go state
     state = St 0 0 queue
 
     queue = PSQ.singleton 0 mempty (Cand mempty [ 0 ] (unSearchT m))
+
+-- | Generate only the best solutions.
+runSearchBestT :: (Ord c, Monoid c, Monad m) => SearchT c m a -> m (Maybe (c, a))
+runSearchBestT m = listToMaybe <$> runSearchT (m <* collapse)
 
 -- | Minimal definition is @cost@, @junction@, and @abandon@.
 class (Ord c, Monoid c, Monad m) => MonadSearch c m | m -> c where

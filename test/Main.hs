@@ -19,11 +19,8 @@ instance Monoid C where
 testSearch :: Search C Side -> [(C, Side)]
 testSearch = runSearch
 
-testSearchIO :: SearchT C IO Side -> IO [(C, Side)]
-testSearchIO comp = runSearchT $ do
-    r <- comp
-    collapse
-    return r
+testSearchIO :: SearchT C IO Side -> IO (Maybe (C, Side))
+testSearchIO = runSearchBestT
 
 infiniteSearch :: Monad m => SearchT C m Side
 infiniteSearch = return L `mplus` (cost' (C 1) >> infiniteSearch)
@@ -79,14 +76,14 @@ spec = testSpec "Control.Monad.Search" $ do
     it "Results are generated lazily in IO" $ do
         testSearchIO (return L `mplus`
                          (cost' (C 1) >> error "not lazy right"))
-            `shouldReturn` [(C 0, L)]
+            `shouldReturn` Just (C 0, L)
         testSearchIO ((cost' (C 1) >> error "not lazy left") `mplus`
                          return R)
-                `shouldReturn` [(C 0, R)]
+                `shouldReturn` Just (C 0, R)
 
     it "Results are generated lazily in IO (infinite)" $
         testSearchIO infiniteSearch
-            `shouldReturn` [(C 0, L)]
+            `shouldReturn` Just (C 0, L)
 
 main :: IO ()
 main = do
