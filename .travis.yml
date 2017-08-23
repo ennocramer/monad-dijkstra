@@ -28,7 +28,7 @@ matrix:
   # - env: BUILD=cabal GHCVER=7.8.4 CABALVER=1.18
   #   compiler: "GHC 7.8.4"
   #   addons: {apt: {packages: [cabal-install-1.18,ghc-7.8.4], sources: [hvr-ghc]}}
-  - env: BUILD=cabal GHCVER=7.10.3 CABALVER=1.22
+  - env: BUILD=cabal GHCVER=7.10.3 CABALVER=1.22 ARGS=--constraint=ansi-terminal==0.6.2.3
     compiler: "GHC 7.10.3"
     addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3], sources: [hvr-ghc]}}
 
@@ -94,8 +94,8 @@ before_install:
 - unset CC
 
 # We want to always allow newer versions of packages when building on GHC HEAD
-- CABALARGS=""
-- if [ "x$GHCVER" = "xhead" ]; then CABALARGS=--allow-newer; fi
+- CABALARGS="$ARGS"
+- if [ "x$GHCVER" = "xhead" ]; then CABALARGS="$CABALARGS --allow-newer"; fi
 
 # Download and unpack the stack executable
 - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$HOME/.local/bin:$PATH
