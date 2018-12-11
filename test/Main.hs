@@ -1,7 +1,11 @@
+{-# LANGUAGE CPP #-}
+
 module Main ( main ) where
 
 import           Control.Monad        ( mplus, mzero )
 import           Control.Monad.Search
+
+import           Data.Semigroup       as Sem
 
 import           Test.Tasty
 import           Test.Tasty.Hspec
@@ -12,9 +16,15 @@ data Side = L | R
 newtype C = C Int
     deriving (Eq, Ord, Show)
 
+instance Sem.Semigroup C where
+    (C l) <> (C r) = C (l + r)
+
 instance Monoid C where
     mempty = C 0
-    mappend (C l) (C r) = C (l + r)
+
+#if !(MIN_VERSION_base(4,11,0))
+    mappend = (<>)
+#endif
 
 testSearch :: Search C Side -> [(C, Side)]
 testSearch = runSearch

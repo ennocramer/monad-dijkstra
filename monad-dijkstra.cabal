@@ -1,5 +1,5 @@
 name:                monad-dijkstra
-version:             0.1.1.0
+version:             0.1.1.1
 synopsis:            Monad transformer for weighted graph searches using Dijkstra's or A* algorithm
 description:         Please see README.md
 homepage:            https://github.com/ennocramer/monad-dijkstra
@@ -16,10 +16,10 @@ library
   hs-source-dirs:      src
   exposed-modules:     Control.Monad.Search
   build-depends:       base >= 4.7 && < 5
-                     , transformers >= 0.4.2.0 && < 0.5.3
+                     , transformers >= 0.4.2.0 && < 0.5.6
                      , mtl >= 2.2.0 && < 2.3
-                     , free >= 4.12.0 && < 4.13
-                     , psqueues >= 0.2.0.0 && < 0.2.4
+                     , free >= 4.12.0 && < 5.2
+                     , psqueues >= 0.2.0.0 && < 0.2.8
   default-language:    Haskell2010
   ghc-options:         -Wall
 
@@ -33,6 +33,9 @@ test-suite test-monad-dijkstra
                      , monad-dijkstra
   default-language:    Haskell2010
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
+
+  if !impl(ghc >= 8.0)
+    build-depends: semigroups >= 0.18.0 && < 0.19
 
 test-suite style-monad-dijkstra
   type:                exitcode-stdio-1.0
