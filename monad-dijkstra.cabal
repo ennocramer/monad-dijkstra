@@ -1,7 +1,7 @@
 name:                monad-dijkstra
 version:             0.1.1.1
-synopsis:            Monad transformer for weighted graph searches using Dijkstra's or A* algorithm
-description:         Please see README.md
+synopsis:            A monad transformer for weighted graph searches
+description:         A monad transformer for weighted graph searches using Dijkstra's or A* algorithm.
 homepage:            https://github.com/ennocramer/monad-dijkstra
 license:             BSD3
 license-file:        LICENSE
