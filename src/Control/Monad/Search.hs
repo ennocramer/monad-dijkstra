@@ -61,33 +61,41 @@ module Control.Monad.Search
     , winner
     ) where
 
-import           Control.Applicative         ( Alternative(..) )
-import           Control.Monad               ( MonadPlus(..) )
-import           Control.Monad.Trans.Free    ( FreeF(Free, Pure), FreeT
-                                             , runFreeT, wrap )
-import           Control.Monad.Trans.State   ( evalStateT, gets, modify )
+import           Control.Applicative             ( Alternative(..) )
+import           Control.Monad                   ( MonadPlus(..) )
 
-import           Control.Monad.Trans.Class   ( MonadTrans, lift )
-import           Control.Monad.IO.Class      ( MonadIO )
-import           Control.Monad.Reader        ( MonadReader, ReaderT(..)
-                                             , runReaderT )
-import qualified Control.Monad.Writer.Lazy   as Lazy ( MonadWriter, WriterT(..)
-                                                     , runWriterT )
-import qualified Control.Monad.Writer.Strict as Strict ( WriterT(..)
-                                                       , runWriterT )
-import qualified Control.Monad.State.Lazy    as Lazy ( MonadState, StateT(..)
-                                                     , runStateT )
-import qualified Control.Monad.State.Strict  as Strict ( StateT(..), runStateT )
-import qualified Control.Monad.RWS.Lazy      as Lazy ( MonadRWS, RWST(..)
-                                                     , runRWST )
-import qualified Control.Monad.RWS.Strict    as Strict ( RWST(..), runRWST )
-import           Control.Monad.Except        ( ExceptT(..), MonadError
-                                             , runExceptT )
-import           Control.Monad.Cont          ( MonadCont )
-import           Data.Functor.Identity       ( Identity, runIdentity )
-import           Data.Maybe                  ( catMaybes, listToMaybe )
+import           Control.Monad.Cont              ( MonadCont )
+import           Control.Monad.Except            ( ExceptT(..), MonadError
+                                                 , runExceptT )
+import           Control.Monad.IO.Class          ( MonadIO )
 
-import qualified Data.OrdPSQ                 as PSQ
+import qualified Control.Monad.RWS.Lazy          as Lazy ( MonadRWS, RWST(..)
+                                                         , runRWST )
+import qualified Control.Monad.RWS.Strict        as Strict ( RWST(..), runRWST )
+import           Control.Monad.Reader            ( MonadReader, ReaderT(..)
+                                                 , runReaderT )
+
+import qualified Control.Monad.State.Lazy        as Lazy ( MonadState
+                                                         , StateT(..)
+                                                         , runStateT )
+import qualified Control.Monad.State.Strict      as Strict ( StateT(..)
+                                                           , runStateT )
+import           Control.Monad.Trans.Class       ( MonadTrans, lift )
+import           Control.Monad.Trans.Free        ( FreeF(Free, Pure), FreeT
+                                                 , runFreeT, wrap )
+import           Control.Monad.Trans.Free.Church ( FT, fromFT )
+import           Control.Monad.Trans.State       ( evalStateT, gets, modify )
+
+import qualified Control.Monad.Writer.Lazy       as Lazy ( MonadWriter
+                                                         , WriterT(..)
+                                                         , runWriterT )
+import qualified Control.Monad.Writer.Strict     as Strict ( WriterT(..)
+                                                           , runWriterT )
+
+import           Data.Functor.Identity           ( Identity, runIdentity )
+import           Data.Maybe                      ( catMaybes, listToMaybe )
+
+import qualified Data.OrdPSQ                     as PSQ
 
 -- | The Search monad
 type Search c = SearchT c Identity
@@ -110,7 +118,7 @@ data SearchF c a = Cost c c a
     deriving Functor
 
 -- | The SearchT monad transformer
-newtype SearchT c m a = SearchT { unSearchT :: FreeT (SearchF c) m a }
+newtype SearchT c m a = SearchT { unSearchT :: FT (SearchF c) m a }
     deriving (Functor, Applicative, Monad, MonadTrans, MonadIO, MonadReader r, Lazy.MonadWriter w, Lazy.MonadState s, MonadError e, MonadCont)
 
 instance (Ord c, Monoid c, Monad m) => Alternative (SearchT c m) where
@@ -190,7 +198,7 @@ runSearchT m = catMaybes <$> evalStateT go state
 
     state = St 0 0 queue
 
-    queue = PSQ.singleton 0 mempty (Cand mempty [ 0 ] (unSearchT m))
+    queue = PSQ.singleton 0 mempty (Cand mempty [ 0 ] (fromFT $ unSearchT m))
 
 -- | Generate only the best solutions.
 runSearchBestT :: (Ord c, Monoid c, Monad m) => SearchT c m a -> m (Maybe (c, a))
