@@ -152,7 +152,7 @@ runSearchT m = catMaybes <$> evalStateT go state
             Free Abandon -> return Nothing
             Free (Cost c e p) ->
                 let newCost = candCost `mappend` c
-                    newPriority = newCost `mappend` e
+                    newPriority = max prio $ newCost `mappend` e
                 in do
                     updateQueue $
                         PSQ.insert num
