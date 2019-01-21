@@ -1,3 +1,11 @@
+# monad-dijkstra 0.1.1.2
+
+* Performance improvements
+
+# monad-dijkstra 0.1.1.1
+
+* Support GHC-8.4.4 and Stackage LTS-12
+
 # monad-dijkstra 0.1.1.0
 
 * Add functions runSearchBest and runSearchBestT
