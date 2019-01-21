@@ -95,7 +95,7 @@ import qualified Control.Monad.Writer.Strict     as Strict ( WriterT(..)
 import           Data.Functor.Identity           ( Identity, runIdentity )
 import           Data.Maybe                      ( catMaybes, listToMaybe )
 
-import qualified Data.OrdPSQ                     as PSQ
+import qualified Data.IntPSQ                     as PSQ
 
 -- | The Search monad
 type Search c = SearchT c Identity
@@ -138,7 +138,7 @@ data Cand c m a = Cand { candCost  :: !c
 -- | State used during evaluation of SearchT
 data St c m a = St { stNum   :: !Int
                    , stScope :: !Int
-                   , stQueue :: !(PSQ.OrdPSQ Int c (Cand c m a))
+                   , stQueue :: !(PSQ.IntPSQ c (Cand c m a))
                    }
 
 -- | Generate all solutions in order of increasing cost.
