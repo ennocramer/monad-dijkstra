@@ -162,11 +162,15 @@ runSearchT m = catMaybes <$> evalStateT go state
                 let newCost = candCost `mappend` c
                     newPriority = max prio $ newCost `mappend` e
                 in do
-                    updateQueue $
-                        PSQ.insert num
-                                   newPriority
-                                   cand { candCost = newCost, candPath = p }
-                    return Nothing
+                    reschedule <- gets (maybe False
+                                              (\(_, x, _) -> x <= newPriority) .
+                                            PSQ.findMin . stQueue)
+                    let cand' = cand { candCost = newCost, candPath = p }
+                    if reschedule
+                        then do
+                            updateQueue $ PSQ.insert num newPriority cand'
+                            return Nothing
+                        else step num newPriority cand'
             Free (Alt lhs rhs) -> do
                 num' <- nextNum
                 updateQueue $ PSQ.insert num' prio cand { candPath = rhs }
