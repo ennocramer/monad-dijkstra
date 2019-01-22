@@ -93,9 +93,31 @@ import qualified Control.Monad.Writer.Strict     as Strict ( WriterT(..)
                                                            , runWriterT )
 
 import           Data.Functor.Identity           ( Identity, runIdentity )
-import           Data.Maybe                      ( catMaybes, listToMaybe )
-
 import qualified Data.IntPSQ                     as PSQ
+import qualified Data.IntMap.Strict              as Map
+import           Data.Maybe                      ( catMaybes, listToMaybe )
+import qualified Data.IntSet                     as Set
+
+newtype Scopemap = Scopemap { unScopemap :: Map.IntMap Set.IntSet }
+
+singleton  :: Int -> Int -> Scopemap
+singleton k = Scopemap . Map.singleton k . Set.singleton
+
+insert :: Int -> Int -> Scopemap -> Scopemap
+insert k v = Scopemap . Map.alter fn k . unScopemap
+  where
+    fn = Just . maybe (Set.singleton v) (Set.insert v)
+
+delete :: Int -> Int -> Scopemap -> Scopemap
+delete k v = Scopemap . Map.update fn k . unScopemap
+  where
+    fn = (\s -> if Set.null s then Nothing else Just s) . Set.delete v
+
+list :: Int -> Scopemap -> [Int]
+list k = maybe [] Set.toList . Map.lookup k . unScopemap
+
+listAll :: Scopemap -> [Int]
+listAll = Set.toList . foldr (Set.union . snd) Set.empty . Map.toList . unScopemap
 
 -- | The Search monad
 type Search c = SearchT c Identity
@@ -136,9 +158,10 @@ data Cand c m a = Cand { candCost  :: !c
                        }
 
 -- | State used during evaluation of SearchT
-data St c m a = St { stNum   :: !Int
-                   , stScope :: !Int
-                   , stQueue :: !(PSQ.IntPSQ c (Cand c m a))
+data St c m a = St { stNum    :: !Int
+                   , stScope  :: !Int
+                   , stActive :: !Scopemap
+                   , stQueue  :: !(PSQ.IntPSQ c (Cand c m a))
                    }
 
 -- | Generate all solutions in order of increasing cost.
@@ -173,19 +196,21 @@ runSearchT m = catMaybes <$> evalStateT go state
                         else step num newPriority cand'
             Free (Alt lhs rhs) -> do
                 num' <- nextNum
+                addScopes candScope num'
                 updateQueue $ PSQ.insert num' prio cand { candPath = rhs }
                 step num prio cand { candPath = lhs }
             Free (Enter p) -> do
                 scope <- nextScope
+                addScope scope num
                 step num
                      prio
                      cand { candScope = scope : candScope, candPath = p }
-            Free (Exit p) ->
+            Free (Exit p) -> do
+                delScope (head candScope) num
                 step num prio cand { candScope = tail candScope, candPath = p }
             Free (Collapse p) -> do
-                updateQueue $ PSQ.fromList .
-                    filter (\(_, _, c) -> not $ hasScope (head candScope) c) .
-                        PSQ.toList
+                cs <- listScope $ listToMaybe candScope
+                updateQueue $ \q -> foldr PSQ.delete q cs
                 step num prio cand { candPath = p }
 
     nextNum = do
@@ -196,11 +221,19 @@ runSearchT m = catMaybes <$> evalStateT go state
         modify $ \s -> s { stScope = stScope s + 1 }
         gets stScope
 
-    hasScope s Cand{..} = s `elem` candScope
+    addScope scope c = updateActive $ insert scope c
+
+    addScopes scopes c = updateActive $ \sm -> foldr (`insert` c) sm scopes
+
+    delScope scope c = updateActive $ delete scope c
+
+    listScope scope = gets $ maybe listAll list scope . stActive
 
     updateQueue f = modify $ \s -> s { stQueue = f (stQueue s) }
 
-    state = St 0 0 queue
+    updateActive f = modify $ \s -> s { stActive = f (stActive s) }
+
+    state = St 0 0 (singleton 0 0) queue
 
     queue = PSQ.singleton 0 mempty (Cand mempty [ 0 ] (fromFT $ unSearchT m))
 
