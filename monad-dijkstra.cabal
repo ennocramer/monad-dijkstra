@@ -43,7 +43,7 @@ test-suite style-monad-dijkstra
   hs-source-dirs:      test
   main-is:             HLint.hs
   build-depends:       base >=4.7 && <5
-                     , hlint >= 1.0 && <3
+                     , hlint >= 1.0 && <4
   default-language:    Haskell2010
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
 

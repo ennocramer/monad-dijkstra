@@ -33,6 +33,14 @@ matrix:
     env: BUILD=cabal
     addons: {apt: {packages: [cabal-install-2.2,ghc-8.6.3], sources: [hvr-ghc]}}
 
+  - name: "Cabal GHC-8.8.3"
+    env: BUILD=cabal
+    addons: {apt: {packages: [cabal-install-3.2,ghc-8.8.3], sources: [hvr-ghc]}}
+
+  - name: "Cabal GHC-8.10.1"
+    env: BUILD=cabal
+    addons: {apt: {packages: [cabal-install-3.2,ghc-8.10.1], sources: [hvr-ghc]}}
+
   - name: "Cabal GHC-HEAD"
     env: BUILD=cabal CABALARGS=--allow-newer
     addons: {apt: {packages: [cabal-install-head,ghc-head], sources: [hvr-ghc]}}
@@ -55,6 +63,9 @@ matrix:
 
   - name: "Stack LTS-13 (GHC-8.6.3)"
     env: BUILD=stack RESOLVER=lts-13
+
+  - name: "Stack LTS-16 (GHC-8.8.3)"
+    env: BUILD=stack RESOLVER=lts-16
 
   - name: "Stack Nightly"
     env: BUILD=stack RESOLVER=nightly

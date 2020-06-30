@@ -159,6 +159,11 @@ jobs:
     environment:
       RESOLVER: lts-13
 
+  stack-lts-16:
+    <<: *stack-linux
+    environment:
+      RESOLVER: lts-16
+
   cabal-lts-6:
     <<: *cabal-linux
     environment:
@@ -189,6 +194,11 @@ jobs:
     environment:
       RESOLVER: lts-13
 
+  cabal-lts-16:
+    <<: *cabal-linux
+    environment:
+      RESOLVER: lts-16
+
   stack-nightly:
     <<: *stack-linux
     environment:
@@ -210,11 +220,13 @@ workflows:
       - stack-lts-11
       - stack-lts-12
       - stack-lts-13
+      - stack-lts-16
       - cabal-lts-6
       - cabal-lts-7
       - cabal-lts-9
       - cabal-lts-11
       - cabal-lts-12
       - cabal-lts-13
+      - cabal-lts-16
       - stack-nightly
       # - stack-lts-13-macos
