@@ -1,5 +1,9 @@
 # monad-dijkstra
 
+[![Hackage][hackage-image]][hackage-url]
+[![Build Status][ci-image]][ci-url]
+[![License][license-image]][license-url]
+
 A monad transformer for weighted graph searches using Dijkstra's or A*
 algorithm.
 
@@ -64,3 +68,10 @@ shortestRoute from to = listToMaybe $ runSearch $ go [from]
                else msum $ flip map (neighbors (head ls)) $
                    \(l, d) -> cost d (distance l to) $ go (l : ls)
 ```
+<!-- Markdown link & img dfn's -->
+[hackage-image]: https://img.shields.io/hackage/v/monad-dijkstra.svg?style=flat
+[hackage-url]: https://hackage.haskell.org/package/monad-dijkstra
+[ci-image]: https://github.com/ennocramer/monad-dijkstra/workflows/CI%20Pipeline/badge.svg
+[ci-url]: https://github.com/ennocramer/monad-dijkstra/actions?query=workflow%3A%22CI+Pipeline%22
+[license-image]: https://img.shields.io/badge/license-BSD--3--Clause-blue?style=flat-square
+[license-url]: https://github.com/ennocramer/monad-dijkstra/blob/master/LICENSE.md
