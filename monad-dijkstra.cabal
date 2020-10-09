@@ -1,52 +1,57 @@
-name:                monad-dijkstra
-version:             0.1.1.3
-synopsis:            A monad transformer for weighted graph searches
-description:         A monad transformer for weighted graph searches using Dijkstra's or A* algorithm.
-homepage:            https://github.com/ennocramer/monad-dijkstra
-license:             BSD3
-license-file:        LICENSE
-author:              Enno Cramer
-maintainer:          Enno Cramer <ecramer@memfrob.de>
-copyright:           Copyright (c) 2016-2020 Enno Cramer
-category:            Control, Monads
-build-type:          Simple
-cabal-version:       >=1.10
+cabal-version: >=1.10
+name:          monad-dijkstra
+version:       0.1.1.3
+license:       BSD3
+license-file:  LICENSE
+copyright:     Copyright (c) 2016-2020 Enno Cramer
+maintainer:    Enno Cramer <ecramer@memfrob.de>
+author:        Enno Cramer
+homepage:      https://github.com/ennocramer/monad-dijkstra
+synopsis:      A monad transformer for weighted graph searches
+description:
+    A monad transformer for weighted graph searches using Dijkstra's or A* algorithm.
 
-library
-  hs-source-dirs:      src
-  exposed-modules:     Control.Monad.Search
-  build-depends:       base >= 4.7 && < 5
-                     , containers >= 0.5.6.2 && < 0.7
-                     , transformers >= 0.4.2.0 && < 0.6
-                     , mtl >= 2.2.0 && < 2.3
-                     , free >= 4.12.0 && < 5.2
-                     , psqueues >= 0.2.0.0 && < 0.3
-  default-language:    Haskell2010
-  ghc-options:         -Wall
-
-test-suite test-monad-dijkstra
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
-  main-is:             Main.hs
-  build-depends:       base >= 4.7 && < 5
-                     , tasty
-                     , tasty-hspec
-                     , monad-dijkstra
-  default-language:    Haskell2010
-  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
-
-  if !impl(ghc >= 8.0)
-    build-depends: semigroups >= 0.18.0 && < 0.19
-
-test-suite style-monad-dijkstra
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
-  main-is:             HLint.hs
-  build-depends:       base >=4.7 && <5
-                     , hlint >= 1.0 && <4
-  default-language:    Haskell2010
-  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
+category:      Control, Monads
+build-type:    Simple
 
 source-repository head
-  type:     git
-  location: https://github.com/ennocramer/monad-dijkstra
+    type:     git
+    location: https://github.com/ennocramer/monad-dijkstra
+
+library
+    exposed-modules:  Control.Monad.Search
+    hs-source-dirs:   src
+    default-language: Haskell2010
+    ghc-options:      -Wall
+    build-depends:
+        base >=4.7 && <5,
+        containers >=0.5.6.2 && <0.7,
+        transformers >=0.4.2.0 && <0.6,
+        mtl >=2.2.0 && <2.3,
+        free >=4.12.0 && <5.2,
+        psqueues >=0.2.0.0 && <0.3
+
+test-suite test-monad-dijkstra
+    type:             exitcode-stdio-1.0
+    main-is:          Main.hs
+    hs-source-dirs:   test
+    default-language: Haskell2010
+    ghc-options:      -Wall -threaded -rtsopts -with-rtsopts=-N
+    build-depends:
+        base >=4.7 && <5,
+        tasty -any,
+        tasty-hspec -any,
+        monad-dijkstra -any
+
+    if !impl(ghc >=8.0)
+        build-depends: semigroups >=0.18.0 && <0.19
+
+test-suite style-monad-dijkstra
+    type:             exitcode-stdio-1.0
+    main-is:          HLint.hs
+    hs-source-dirs:   test
+    default-language: Haskell2010
+    ghc-options:      -Wall -threaded -rtsopts -with-rtsopts=-N
+    build-depends:
+        base >=4.7 && <5,
+        hlint >=1.0 && <4
