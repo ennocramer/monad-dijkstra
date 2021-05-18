@@ -7,6 +7,10 @@ import           Control.Monad.Search
 
 import           Data.Semigroup       as Sem
 
+#if MIN_VERSION_tasty_hspec(1,1,7)
+import           Test.Hspec
+#endif
+
 import           Test.Tasty
 import           Test.Tasty.Hspec
 

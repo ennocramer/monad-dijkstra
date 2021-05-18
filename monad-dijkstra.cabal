@@ -39,6 +39,7 @@ test-suite test-monad-dijkstra
     ghc-options:      -Wall -threaded -rtsopts -with-rtsopts=-N
     build-depends:
         base >=4.7 && <5,
+        hspec -any,
         tasty -any,
         tasty-hspec -any,
         monad-dijkstra -any
