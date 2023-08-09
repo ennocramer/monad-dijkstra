@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, macOS-latest ]
-        ghc: [ 8.4.4, 8.6.5, 8.8.3, 8.10.2, 9.0.1 ]
+        ghc: [ 8.4.4, 8.6.5, 8.8.4, 8.10.7, 9.0.2, 9.2.8, 9.4.6, 9.6.2 ]
         exclude:
           - os: macOS-latest
             ghc: 8.4.4
