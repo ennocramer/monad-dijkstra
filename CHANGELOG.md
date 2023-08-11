@@ -1,7 +1,16 @@
+# monad-dijkstra 0.1.1.4
+
+* Support GHC-9.0
+* Support GHC-9.2
+* Support GHC-9.4
+* Support GHC-9.6
+
 # monad-dijkstra 0.1.1.3
 
 * Removed unused language pragma
 * Support GHC-8.6.3 and Stackage LTS-16
+* Support GHC-8.8.3
+* Support GHC-8.10.1
 
 # monad-dijkstra 0.1.1.2
 
