@@ -1,3 +1,7 @@
+# monad-dijkstra 0.1.1.5
+
+* Support for containers-0.7.0.0
+
 # monad-dijkstra 0.1.1.4
 
 * Support GHC-9.0
