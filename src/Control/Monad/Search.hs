@@ -49,6 +49,7 @@ module Control.Monad.Search
     , SearchT
     , runSearchT
     , runSearchBestT
+    , mapSearchT
       -- * MonadClass and search monad operations
     , MonadSearch
     , cost
@@ -82,7 +83,7 @@ import qualified Control.Monad.State.Strict      as Strict ( StateT(..)
 import           Control.Monad.Trans.Class       ( MonadTrans, lift )
 import           Control.Monad.Trans.Free        ( FreeF(Free, Pure), FreeT
                                                  , runFreeT, wrap )
-import           Control.Monad.Trans.Free.Church ( FT, fromFT )
+import           Control.Monad.Trans.Free.Church ( FT, fromFT, hoistFT )
 import           Control.Monad.Trans.State       ( evalStateT, gets, modify )
 
 import qualified Control.Monad.Writer.Lazy       as Lazy ( MonadWriter
@@ -239,6 +240,9 @@ runSearchT m = catMaybes <$> evalStateT go state
 -- | Generate only the best solutions.
 runSearchBestT :: (Ord c, Monoid c, Monad m) => SearchT c m a -> m (Maybe (c, a))
 runSearchBestT m = listToMaybe <$> runSearchT (m <* collapse)
+
+mapSearchT :: (Monad m, Monad n) => (forall a. m a -> n a) -> SearchT c m b -> SearchT c n b
+mapSearchT f (SearchT m) = SearchT $ hoistFT f m
 
 -- | Minimal definition is @cost@, @junction@, and @abandon@.
 class (Ord c, Monoid c, Monad m) => MonadSearch c m | m -> c where
